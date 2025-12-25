@@ -74,14 +74,6 @@ class XprimeProvider : MainAPI() {
             ).text
         )
 
-        val title = tmdb.optString("title")
-        val poster = tmdb.optString("poster_path")
-
-        val year = tmdb.optString("release_date")
-            .takeIf { it.length >= 4 }
-            ?.substring(0, 4)
-            ?.toIntOrNull()
-
         val genres = tmdb.optJSONArray("genres")?.let {
             (0 until it.length()).mapNotNull { i ->
                 it.getJSONObject(i).optString("name")
@@ -89,77 +81,69 @@ class XprimeProvider : MainAPI() {
         }
 
         return newMovieLoadResponse(
-            title,
+            tmdb.optString("title"),
             url,
             TvType.Movie,
             url
         ) {
-            posterUrl = "$tmdbImg$poster"
+            posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
             plot = tmdb.optString("overview")
-            this.year = year
+            year = tmdb.optString("release_date").take(4).toIntOrNull()
             tags = genres
         }
     }
 
-  override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
 
-    val id = data.substringAfterLast("/")
+        val id = data.substringAfterLast("/")
+        val serversJson = app.get("https://mzt4pr8wlkxnv0qsha5g.website/servers").text
+        val servers = JSONObject(serversJson).getJSONArray("servers")
 
-    val serversJson = app.get(
-        "https://mzt4pr8wlkxnv0qsha5g.website/servers"
-    ).text
+        var found = false
 
-    val servers = JSONObject(serversJson).getJSONArray("servers")
-    var found = false
+        for (i in 0 until servers.length()) {
+            val server = servers.getJSONObject(i)
+            if (server.optString("status") != "ok") continue
 
-    for (i in 0 until servers.length()) {
-        val server = servers.getJSONObject(i)
-        if (server.optString("status") != "ok") continue
+            val serverName = server.getString("name")
+            val apiUrl =
+                "https://mzt4pr8wlkxnv0qsha5g.website/$serverName?id=$id&turnstile=0"
 
-        val serverName = server.getString("name")
-
-        val apiUrl =
-            "https://mzt4pr8wlkxnv0qsha5g.website/$serverName" +
-            "?id=$id&turnstile=0"
-
-        val res = app.get(
-            apiUrl,
-            allowRedirects = false,
-            headers = mapOf(
-                "User-Agent" to USER_AGENT,
-                "Referer" to "https://xprime.today/",
-                "Origin" to "https://xprime.today"
+            val res = app.get(
+                apiUrl,
+                allowRedirects = false,
+                headers = mapOf(
+                    "User-Agent" to USER_AGENT,
+                    "Referer" to "https://xprime.today/",
+                    "Origin" to "https://xprime.today"
+                )
             )
-        )
 
-        val m3u8 = res.headers["Location"]
-            ?: Regex("""https?://[^\s'"]+\.m3u8""")
-                .find(res.text)
-                ?.value
+            val m3u8 = res.headers["Location"]
+                ?: Regex("""https?://[^\s'"]+\.m3u8""")
+                    .find(res.text)
+                    ?.value
 
-        if (m3u8 != null) {
-            callback(
-                newExtractorLink(
-                    source = "Xprime",
-                    name = "Xprime - $serverName",
-                    url = m3u8,
-                    type = ExtractorLinkType.M3U8
-                ) {
-                    referer = "https://xprime.today/"
-                    headers = mapOf(
-                        "User-Agent" to USER_AGENT,
-                        "Origin" to "https://xprime.today"
-                    )
-                }
-            )
-            found = true
+            if (m3u8 != null) {
+                callback(
+                    newExtractorLink(
+                        source = "Xprime",
+                        name = "Xprime - $serverName",
+                        url = m3u8,
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        referer = "https://xprime.today/"
+                    }
+                )
+                found = true
+            }
         }
-    }
 
-    return found
+        return found
+    }
 }
