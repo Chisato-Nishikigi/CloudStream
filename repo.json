@@ -1,8 +1,10 @@
-{
-  "name": "CloudStream",
-  "description": "Dépôt perso pour Cloudstream",
-  "manifestVersion": 1,
-  "pluginLists": [
-    "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/refs/heads/master/plugins.json"
-  ]
-}
+[
+  {
+    "name": "Xprime",
+    "description": "Movies from Xprime",
+    "version": 1,
+    "language": "en",
+    "authors": ["Reno"],
+    "url": "https://raw.githubusercontent.com/USERNAME/REPO/refs/heads/master/XprimeProvider.cs3"
+  }
+]
