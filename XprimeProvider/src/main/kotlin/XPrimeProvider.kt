@@ -101,63 +101,65 @@ class XprimeProvider : MainAPI() {
         }
     }
 
-    override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
+  override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit
+): Boolean {
 
-        val id = data.substringAfterLast("/")
+    val id = data.substringAfterLast("/")
 
-        val serversJson = app.get(
-            "https://mzt4pr8wlkxnv0qsha5g.website/servers"
-        ).text
+    val serversJson = app.get(
+        "https://mzt4pr8wlkxnv0qsha5g.website/servers"
+    ).text
 
-        val servers = JSONObject(serversJson).getJSONArray("servers")
-        var found = false
+    val servers = JSONObject(serversJson).getJSONArray("servers")
+    var found = false
 
-        for (i in 0 until servers.length()) {
-            val server = servers.getJSONObject(i)
-            val name = server.getString("name")
-            val status = server.getString("status")
+    for (i in 0 until servers.length()) {
+        val server = servers.getJSONObject(i)
+        if (server.optString("status") != "ok") continue
 
-            if (status != "ok") continue
+        val serverName = server.getString("name")
 
-            val watchUrl = "$mainUrl/watch/$id?server=$name"
+        val apiUrl =
+            "https://mzt4pr8wlkxnv0qsha5g.website/$serverName" +
+            "?id=$id&turnstile=0"
 
-            val html = app.get(
-                watchUrl,
-                headers = mapOf(
-                    "User-Agent" to USER_AGENT,
-                    "Referer" to "https://xprime.today/"
-                )
-            ).text
+        val res = app.get(
+            apiUrl,
+            allowRedirects = false,
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Referer" to "https://xprime.today/",
+                "Origin" to "https://xprime.today"
+            )
+        )
 
-            Regex("""https?://[^\s'"]+\.m3u8""")
-                .find(html)
+        val m3u8 = res.headers["Location"]
+            ?: Regex("""https?://[^\s'"]+\.m3u8""")
+                .find(res.text)
                 ?.value
-                ?.let { m3u8 ->
 
-                    callback(
-                        newExtractorLink(
-                            source = "Xprime",
-                            name = "Xprime - $name",
-                            url = m3u8,
-                            type = ExtractorLinkType.M3U8
-                        ) {
-                            referer = "https://xprime.today/"
-                            headers = mapOf(
-                                "User-Agent" to USER_AGENT,
-                                "Origin" to "https://xprime.today"
-                            )
-                        }
+        if (m3u8 != null) {
+            callback(
+                newExtractorLink(
+                    source = "Xprime",
+                    name = "Xprime - $serverName",
+                    url = m3u8,
+                    type = ExtractorLinkType.M3U8
+                ) {
+                    referer = "https://xprime.today/"
+                    headers = mapOf(
+                        "User-Agent" to USER_AGENT,
+                        "Origin" to "https://xprime.today"
                     )
-
-                    found = true
                 }
+            )
+            found = true
         }
-
-        return found
     }
+
+    return found
 }
