@@ -8,7 +8,7 @@ class XprimeProvider : MainAPI() {
 
     override var name = "Xprime"
     override var mainUrl = "https://xprime.today"
-    override var lang = "id"
+    override var lang = "en"
     override val supportedTypes = setOf(TvType.Movie)
     override var hasMainPage = true
 
@@ -16,89 +16,79 @@ class XprimeProvider : MainAPI() {
     private val tmdbImg = "https://image.tmdb.org/t/p/w500"
 
     override val mainPage = mainPageOf(
-        "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases"
-    )
+    // Xprime native
+    "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases",
+    "https://db.xprime.stream/netflix-movies" to "🎬 Netflix Collection",
+    "https://db.xprime.stream/4k-releases" to "📺 4K Movies",
 
+    // Netflix style
+    "tmdb://trending" to "⭐ Trending Now (Netflix Style)",
+    "tmdb://new" to "🆕 New Movies (Netflix Style)",
+
+    // Amazon style
+    "tmdb://top" to "👑 Top Rated (Amazon Style)",
+
+    // Disney style
+    "tmdb://family" to "👨‍👩‍👧‍👦 Family & Animation (Disney Style)",
+    "tmdb://fantasy" to "🧙 Fantasy & Adventure",
+
+    // Genre highlights
+    "tmdb://action" to "💥 Action Movies",
+    "tmdb://drama" to "🎭 Drama Movies"
+)
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
 
-        val list = mutableListOf<SearchResponse>()
-
         val json = JSONObject(app.get(request.data).text)
         val ids = json.getJSONArray("movies")
 
-        for (i in 0 until ids.length()) {
+        val items = (0 until ids.length()).mapNotNull { i ->
             val id = ids.getInt(i)
-
             val tmdb = JSONObject(
                 app.get(
                     "https://api.themoviedb.org/3/movie/$id",
-                    params = mapOf("api_key" to tmdbKey, "language" to "id-ID")
+                    params = mapOf("api_key" to tmdbKey)
                 ).text
             )
 
             val title = tmdb.optString("title")
-            if (title.isBlank()) continue
-
             val poster = tmdb.optString("poster_path")
-            val year = tmdb.optString("release_date")
-                .takeIf { it.length >= 4 }
-                ?.substring(0, 4)
-                ?.toIntOrNull()
+            if (title.isBlank()) return@mapNotNull null
 
-            list.add(
-                newMovieSearchResponse(
-                    title,
-                    "$mainUrl/watch/$id",
-                    TvType.Movie
-                ) {
-                    posterUrl = "$tmdbImg$poster"
-                    this.year = year
-                }
-            )
+            newMovieSearchResponse(
+                title,
+                "$mainUrl/watch/$id",
+                TvType.Movie
+            ) {
+                posterUrl = "$tmdbImg$poster"
+            }
         }
 
-        return newHomePageResponse(request.name, list)
+        return newHomePageResponse(request.name, items)
     }
 
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast("/")
-
         val tmdb = JSONObject(
             app.get(
                 "https://api.themoviedb.org/3/movie/$id",
-                params = mapOf("api_key" to tmdbKey, "language" to "id-ID")
+                params = mapOf("api_key" to tmdbKey)
             ).text
         )
 
-        val title = tmdb.optString("title")
-        val poster = tmdb.optString("poster_path")
-
-        val year = tmdb.optString("release_date")
-            .takeIf { it.length >= 4 }
-            ?.substring(0, 4)
-            ?.toIntOrNull()
-
-        val genres = tmdb.optJSONArray("genres")?.let {
-            (0 until it.length()).mapNotNull { i ->
-                it.getJSONObject(i).optString("name")
-            }
-        }
-
         return newMovieLoadResponse(
-            title,
+            tmdb.optString("title"),
             url,
             TvType.Movie,
             url
         ) {
-            posterUrl = "$tmdbImg$poster"
+            posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
             plot = tmdb.optString("overview")
-            this.year = year
-            tags = genres
         }
     }
+
 override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
@@ -107,19 +97,44 @@ override suspend fun loadLinks(
 ): Boolean {
 
     val id = data.substringAfterLast("/")
-
-    val html = app.get("$mainUrl/watch/$id").text
-    val m3u8 = Regex("""https?://[^\s'"]+\.m3u8""")
-        .find(html)
-        ?.value ?: return false
+    val m3u8 = fetchStreamUrl(id) ?: return false
 
     callback(
         newExtractorLink(
-            name,
-            "Xprime",
-            m3u8
+            source = name,
+            name = "Xprime",
+            url = m3u8
         )
     )
 
     return true
+}
+
+    private suspend fun fetchStreamUrl(id: String): String? {
+        val serversJson = app.get(
+            "https://mzt4pr8wlkxnv0qsha5g.website/servers"
+        ).text
+
+        val servers = JSONObject(serversJson)
+            .getJSONArray("servers")
+
+        for (i in 0 until servers.length()) {
+            val server = servers.getJSONObject(i)
+            if (server.optString("status") != "ok") continue
+
+            val serverName = server.getString("name")
+            val url = "$mainUrl/watch/$id?server=$serverName"
+
+            val res = app.get(url, allowRedirects = false)
+            res.headers["Location"]?.let {
+                if (it.contains(".m3u8")) return it
+            }
+
+            val html = app.get(url).text
+            Regex("""https?://[^\s'"]+\.m3u8""")
+                .find(html)
+                ?.let { return it.value }
+        }
+        return null
+    }
 }
