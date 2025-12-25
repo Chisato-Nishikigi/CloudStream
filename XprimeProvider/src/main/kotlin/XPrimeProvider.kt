@@ -99,8 +99,7 @@ class XprimeProvider : MainAPI() {
             tags = genres
         }
     }
-
-    override suspend fun loadLinks(
+override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
     subtitleCallback: (SubtitleFile) -> Unit,
@@ -116,13 +115,11 @@ class XprimeProvider : MainAPI() {
 
     callback(
         newExtractorLink(
-            source = name,
-            name = "Xprime",
-            url = m3u8,
-            referer = mainUrl,
-            quality = Qualities.Unknown.value,
-            isM3u8 = true
+            name,
+            "Xprime",
+            m3u8
         )
     )
+
     return true
 }
