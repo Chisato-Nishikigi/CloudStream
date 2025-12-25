@@ -89,8 +89,6 @@ override suspend fun load(url: String): LoadResponse {
         }
     }
 
-    val rating = tmdb.optDouble("vote_average", 0.0)
-
     return newMovieLoadResponse(
         title,
         url,
@@ -100,19 +98,11 @@ override suspend fun load(url: String): LoadResponse {
         posterUrl = "$tmdbImg$poster"
         plot = tmdb.optString("overview")
         this.year = year
-        tags = genres
-
-        // Rating versi AMAN (tanpa Score class)
-        if (rating > 0) {
-            addRating(
-                name = "TMDB",
-                value = rating.toFloat(),
-                max = 10f
-            )
-        }
+        tags = genres   // ✅ genre tampil
     }
 }
-override suspend fun loadLinks(
+    
+    override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
     subtitleCallback: (SubtitleFile) -> Unit,
