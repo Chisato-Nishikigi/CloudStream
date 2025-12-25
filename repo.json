@@ -3,6 +3,6 @@
   "description": "Dépôt perso pour Cloudstream",
   "manifestVersion": 1,
   "pluginLists": [
-    "https://raw.githubusercontent.com/DavSnip/CloudStream/master/plugins.json"
+    "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/refs/heads/master/plugins.json"
   ]
 }
