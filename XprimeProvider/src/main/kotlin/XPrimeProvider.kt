@@ -41,18 +41,19 @@ class XprimeProvider : MainAPI() {
     request: MainPageRequest
 ): HomePageResponse {
 
-    val items = when {
-        // Xprime endpoints
+    val items: List<SearchResponse> = when {
         request.data.startsWith("https://db.xprime.stream") -> {
             val json = JSONObject(app.get(request.data).text)
             val ids = json.getJSONArray("movies")
 
-            (0 until ids.length()).mapNotNull { i ->
-                buildFromTmdb(ids.getInt(i))
+            val list = mutableListOf<SearchResponse>()
+            for (i in 0 until ids.length()) {
+                val item = buildFromTmdb(ids.getInt(i))
+                if (item != null) list.add(item)
             }
+            list
         }
 
-        // TMDB style router
         request.data.startsWith("tmdb://") -> {
             val url = when (request.data) {
                 "tmdb://trending" ->
@@ -82,9 +83,12 @@ class XprimeProvider : MainAPI() {
             val json = JSONObject(app.get(url).text)
             val results = json.getJSONArray("results")
 
-            (0 until results.length()).mapNotNull {
-                buildFromTmdbJson(results.getJSONObject(it))
+            val list = mutableListOf<SearchResponse>()
+            for (i in 0 until results.length()) {
+                val item = buildFromTmdbJson(results.getJSONObject(i))
+                if (item != null) list.add(item)
             }
+            list
         }
 
         else -> emptyList()
@@ -92,7 +96,6 @@ class XprimeProvider : MainAPI() {
 
     return newHomePageResponse(request.name, items)
 }
-
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast("/")
         val tmdb = JSONObject(
