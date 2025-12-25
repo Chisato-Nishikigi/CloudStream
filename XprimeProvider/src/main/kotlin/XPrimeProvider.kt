@@ -165,31 +165,4 @@ override suspend fun load(url: String): LoadResponse {
 
     return found
 }
-    private suspend fun fetchStreamUrl(id: String): String? {
-        val serversJson = app.get(
-            "https://mzt4pr8wlkxnv0qsha5g.website/servers"
-        ).text
-
-        val servers = JSONObject(serversJson)
-            .getJSONArray("servers")
-
-        for (i in 0 until servers.length()) {
-            val server = servers.getJSONObject(i)
-            if (server.optString("status") != "ok") continue
-
-            val serverName = server.getString("name")
-            val url = "$mainUrl/watch/$id?server=$serverName"
-
-            val res = app.get(url, allowRedirects = false)
-            res.headers["Location"]?.let {
-                if (it.contains(".m3u8")) return it
-            }
-
-            val html = app.get(url).text
-            Regex("""https?://[^\s'"]+\.m3u8""")
-                .find(html)
-                ?.let { return it.value }
-        }
-        return null
-    }
-}
+   
