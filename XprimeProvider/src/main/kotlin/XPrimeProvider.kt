@@ -2,19 +2,21 @@ package com.hexated
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import org.json.JSONObject
 
 class XprimeProvider : MainAPI() {
 
-    override var mainUrl = "https://db.xprime.stream"
     override var name = "Xprime"
+    override var mainUrl = "https://xprime.today"
     override var lang = "en"
-    override var hasMainPage = true
     override val supportedTypes = setOf(TvType.Movie)
+    override var hasMainPage = true
+
+    private val tmdbKey = "84259f99204eeb7d45c7e3d8e36c6123"
+    private val tmdbImg = "https://image.tmdb.org/t/p/w500"
 
     override val mainPage = mainPageOf(
-        "$mainUrl/latest-releases" to "Latest Releases",
-        "$mainUrl/netflix-movies" to "Netflix Movies",
-        "$mainUrl/4k-releases" to "4K Movies"
+        "https://db.xprime.stream/latest-releases" to "Latest Releases"
     )
 
     override suspend fun getMainPage(
@@ -22,63 +24,54 @@ class XprimeProvider : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
 
-        val document = app.get(request.data).document
+        val json = JSONObject(app.get(request.data).text)
+        val ids = json.getJSONArray("movies")
 
-        val items = document.select("a[href*='/movie/']").mapNotNull { el ->
-            val url = fixUrl(el.attr("href"))
-            val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
-            val poster = el.selectFirst("img")?.attr("src")
+        val items = (0 until ids.length()).mapNotNull { i ->
+            val id = ids.getInt(i)
+            val tmdb = JSONObject(
+                app.get(
+                    "https://api.themoviedb.org/3/movie/$id",
+                    params = mapOf("api_key" to tmdbKey)
+                ).text
+            )
+
+            val title = tmdb.optString("title")
+            val poster = tmdb.optString("poster_path")
+            if (title.isBlank()) return@mapNotNull null
 
             newMovieSearchResponse(
-                name = title,
-                url = url,
-                type = TvType.Movie
+                title,
+                "$mainUrl/watch/$id",
+                TvType.Movie
             ) {
-                posterUrl = poster
+                posterUrl = "$tmdbImg$poster"
             }
         }
 
-        return newHomePageResponse(
-            request.name,
-            items
+        return newHomePageResponse(request.name, items)
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val id = url.substringAfterLast("/")
+        val tmdb = JSONObject(
+            app.get(
+                "https://api.themoviedb.org/3/movie/$id",
+                params = mapOf("api_key" to tmdbKey)
+            ).text
         )
-    }
 
-    override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/search?q=$query").document
-
-        return document.select("a[href*='/movie/']").mapNotNull { el ->
-            val url = fixUrl(el.attr("href"))
-            val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
-            val poster = el.selectFirst("img")?.attr("src")
-
-            newMovieSearchResponse(
-                name = title,
-                url = url,
-                type = TvType.Movie
-            ) {
-                posterUrl = poster
-            }
+        return newMovieLoadResponse(
+            tmdb.optString("title"),
+            url,
+            TvType.Movie,
+            url
+        ) {
+            posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
+            plot = tmdb.optString("overview")
         }
     }
 
-override suspend fun load(url: String): LoadResponse {
-    val document = app.get(url).document
-
-    val title = document.selectFirst("h1")?.text() ?: "Unknown"
-    val poster = document.selectFirst("img")?.attr("src")
-    val plot = document.selectFirst("p, div.description")?.text()
-
-    return newMovieLoadResponse(
-        title,          // name
-        url,            // url
-        TvType.Movie,   // type
-        url             // dataUrl
-    ) {
-        this.posterUrl = poster
-        this.plot = plot
-    }
-}
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -86,15 +79,47 @@ override suspend fun load(url: String): LoadResponse {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
 
-        val document = app.get(data).document
-        val iframe = document.selectFirst("iframe")?.attr("src") ?: return false
+        val id = data.substringAfterLast("/")
+        val m3u8 = fetchStreamUrl(id) ?: return false
 
-        loadExtractor(
-            fixUrl(iframe),
-            referer = mainUrl,
-            subtitleCallback,
-            callback
+        callback(
+            ExtractorLink(
+                source = name,
+                name = "Xprime",
+                url = m3u8,
+                referer = mainUrl,
+                quality = Qualities.Unknown.value,
+                isM3u8 = true
+            )
         )
         return true
+    }
+
+    private suspend fun fetchStreamUrl(id: String): String? {
+        val serversJson = app.get(
+            "https://mzt4pr8wlkxnv0qsha5g.website/servers"
+        ).text
+
+        val servers = JSONObject(serversJson)
+            .getJSONArray("servers")
+
+        for (i in 0 until servers.length()) {
+            val server = servers.getJSONObject(i)
+            if (server.optString("status") != "ok") continue
+
+            val serverName = server.getString("name")
+            val url = "$mainUrl/watch/$id?server=$serverName"
+
+            val res = app.get(url, allowRedirects = false)
+            res.headers["Location"]?.let {
+                if (it.contains(".m3u8")) return it
+            }
+
+            val html = app.get(url).text
+            Regex("""https?://[^\s'"]+\.m3u8""")
+                .find(html)
+                ?.let { return it.value }
+        }
+        return null
     }
 }
