@@ -39,17 +39,24 @@ override suspend fun getMainPage(
             ).text
         )
 
-        val title = tmdb.optString("title")
-        val poster = tmdb.optString("poster_path")
-        if (title.isBlank()) return@mapNotNull null
+       val title = tmdb.optString("title")
+val poster = tmdb.optString("poster_path")
 
-        newMovieSearchResponse(
-            title,
-            "$mainUrl/watch/$id",
-            TvType.Movie
-        ) {
-            posterUrl = "$tmdbImg$poster"
-        }
+val year = tmdb.optString("release_date")
+    .takeIf { it.length >= 4 }
+    ?.substring(0, 4)
+    ?.toIntOrNull()
+
+if (title.isBlank()) return@mapNotNull null
+
+newMovieSearchResponse(
+    title,
+    "$mainUrl/watch/$id",
+    TvType.Movie
+) {
+    posterUrl = "$tmdbImg$poster"
+    this.year = year
+}
     }
 
     return newHomePageResponse(request.name, items)
