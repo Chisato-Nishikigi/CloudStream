@@ -37,37 +37,61 @@ class XprimeProvider : MainAPI() {
     "tmdb://drama" to "🎭 Drama Movies"
 )
     override suspend fun getMainPage(
-        page: Int,
-        request: MainPageRequest
-    ): HomePageResponse {
+    page: Int,
+    request: MainPageRequest
+): HomePageResponse {
 
-        val json = JSONObject(app.get(request.data).text)
-        val ids = json.getJSONArray("movies")
+    val items = when {
+        // Xprime endpoints
+        request.data.startsWith("https://db.xprime.stream") -> {
+            val json = JSONObject(app.get(request.data).text)
+            val ids = json.getJSONArray("movies")
 
-        val items = (0 until ids.length()).mapNotNull { i ->
-            val id = ids.getInt(i)
-            val tmdb = JSONObject(
-                app.get(
-                    "https://api.themoviedb.org/3/movie/$id",
-                    params = mapOf("api_key" to tmdbKey)
-                ).text
-            )
-
-            val title = tmdb.optString("title")
-            val poster = tmdb.optString("poster_path")
-            if (title.isBlank()) return@mapNotNull null
-
-            newMovieSearchResponse(
-                title,
-                "$mainUrl/watch/$id",
-                TvType.Movie
-            ) {
-                posterUrl = "$tmdbImg$poster"
+            (0 until ids.length()).mapNotNull { i ->
+                buildFromTmdb(ids.getInt(i))
             }
         }
 
-        return newHomePageResponse(request.name, items)
+        // TMDB style router
+        request.data.startsWith("tmdb://") -> {
+            val url = when (request.data) {
+                "tmdb://trending" ->
+                    "https://api.themoviedb.org/3/trending/movie/week?api_key=$tmdbKey"
+
+                "tmdb://new" ->
+                    "https://api.themoviedb.org/3/movie/now_playing?api_key=$tmdbKey"
+
+                "tmdb://top" ->
+                    "https://api.themoviedb.org/3/movie/top_rated?api_key=$tmdbKey"
+
+                "tmdb://action" ->
+                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=28"
+
+                "tmdb://drama" ->
+                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=18"
+
+                "tmdb://family" ->
+                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=16,10751"
+
+                "tmdb://fantasy" ->
+                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=14,12"
+
+                else -> return newHomePageResponse(request.name, emptyList())
+            }
+
+            val json = JSONObject(app.get(url).text)
+            val results = json.getJSONArray("results")
+
+            (0 until results.length()).mapNotNull {
+                buildFromTmdbJson(results.getJSONObject(it))
+            }
+        }
+
+        else -> emptyList()
     }
+
+    return newHomePageResponse(request.name, items)
+}
 
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast("/")
