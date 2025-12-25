@@ -25,13 +25,13 @@ class XprimeProvider : MainAPI() {
         val document = app.get(request.data).document
 
         val items = document.select("a[href*='/movie/']").mapNotNull { el ->
-            val url = el.attr("href")
+            val url = fixUrl(el.attr("href"))
             val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
             val poster = el.selectFirst("img")?.attr("src")
 
             newMovieSearchResponse(
                 name = title,
-                dataUrl = fixUrl(url),
+                url = url,
                 type = TvType.Movie
             ) {
                 posterUrl = poster
@@ -48,13 +48,13 @@ class XprimeProvider : MainAPI() {
         val document = app.get("$mainUrl/search?q=$query").document
 
         return document.select("a[href*='/movie/']").mapNotNull { el ->
-            val url = el.attr("href")
+            val url = fixUrl(el.attr("href"))
             val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
             val poster = el.selectFirst("img")?.attr("src")
 
             newMovieSearchResponse(
                 name = title,
-                dataUrl = fixUrl(url),
+                url = url,
                 type = TvType.Movie
             ) {
                 posterUrl = poster
