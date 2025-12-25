@@ -20,21 +20,6 @@ class XprimeProvider : MainAPI() {
     "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases",
     "https://db.xprime.stream/netflix-movies" to "🎬 Netflix Collection",
     "https://db.xprime.stream/4k-releases" to "📺 4K Movies",
-
-    // Netflix style
-    "tmdb://trending" to "⭐ Trending Now (Netflix Style)",
-    "tmdb://new" to "🆕 New Movies (Netflix Style)",
-
-    // Amazon style
-    "tmdb://top" to "👑 Top Rated (Amazon Style)",
-
-    // Disney style
-    "tmdb://family" to "👨‍👩‍👧‍👦 Family & Animation (Disney Style)",
-    "tmdb://fantasy" to "🧙 Fantasy & Adventure",
-
-    // Genre highlights
-    "tmdb://action" to "💥 Action Movies",
-    "tmdb://drama" to "🎭 Drama Movies"
 )
 override suspend fun getMainPage(
     page: Int,
