@@ -26,83 +26,29 @@ override suspend fun getMainPage(
     request: MainPageRequest
 ): HomePageResponse {
 
-    val items = mutableListOf<SearchResponse>()
+    val json = JSONObject(app.get(request.data).text)
+    val ids = json.getJSONArray("movies")
 
-    when {
-        // ================= XPRIME =================
-        request.data.startsWith("https://db.xprime.stream") -> {
-            val json = JSONObject(app.get(request.data).text)
-            val ids = json.getJSONArray("movies")
+    val items = (0 until ids.length()).mapNotNull { i ->
+        val id = ids.getInt(i)
 
-            for (i in 0 until ids.length()) {
-                val id = ids.getInt(i)
+        val tmdb = JSONObject(
+            app.get(
+                "https://api.themoviedb.org/3/movie/$id",
+                params = mapOf("api_key" to tmdbKey)
+            ).text
+        )
 
-                val tmdb = JSONObject(
-                    app.get(
-                        "https://api.themoviedb.org/3/movie/$id",
-                        params = mapOf("api_key" to tmdbKey)
-                    ).text
-                )
+        val title = tmdb.optString("title")
+        val poster = tmdb.optString("poster_path")
+        if (title.isBlank()) return@mapNotNull null
 
-                val title = tmdb.optString("title")
-                if (title.isBlank()) continue
-
-                items.add(
-                    newMovieSearchResponse(
-                        title,
-                        "$mainUrl/watch/$id",
-                        TvType.Movie
-                    ) {
-                        posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
-                    }
-                )
-            }
-        }
-
-        // ================= TMDB ROUTER =================
-        request.data.startsWith("tmdb://") -> {
-            val apiUrl = when (request.data) {
-                "tmdb://trending" ->
-                    "https://api.themoviedb.org/3/trending/movie/week?api_key=$tmdbKey"
-
-                "tmdb://new" ->
-                    "https://api.themoviedb.org/3/movie/now_playing?api_key=$tmdbKey"
-
-                "tmdb://top" ->
-                    "https://api.themoviedb.org/3/movie/top_rated?api_key=$tmdbKey"
-
-                "tmdb://family" ->
-                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=16,10751"
-
-                "tmdb://fantasy" ->
-                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=14,12"
-
-                "tmdb://action" ->
-                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=28"
-
-                "tmdb://drama" ->
-                    "https://api.themoviedb.org/3/discover/movie?api_key=$tmdbKey&with_genres=18"
-
-                else -> return newHomePageResponse(request.name, emptyList())
-            }
-
-            val json = JSONObject(app.get(apiUrl).text)
-            val results = json.getJSONArray("results")
-
-            for (i in 0 until results.length()) {
-                val obj = results.getJSONObject(i)
-                val id = obj.getInt("id")
-
-                items.add(
-                    newMovieSearchResponse(
-                        obj.optString("title"),
-                        "$mainUrl/watch/$id",
-                        TvType.Movie
-                    ) {
-                        posterUrl = "$tmdbImg${obj.optString("poster_path")}"
-                    }
-                )
-            }
+        newMovieSearchResponse(
+            title,
+            "$mainUrl/watch/$id",
+            TvType.Movie
+        ) {
+            posterUrl = "$tmdbImg$poster"
         }
     }
 
