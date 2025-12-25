@@ -116,8 +116,15 @@ override suspend fun load(url: String): LoadResponse {
         newExtractorLink(
             source = name,
             name = "Xprime",
-            url = m3u8
-        )
+            url = m3u8,
+            type = ExtractorLinkType.M3U8
+        ) {
+            referer = "https://xprime.today/"
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Origin" to "https://xprime.today"
+            )
+        }
     )
 
     return true
