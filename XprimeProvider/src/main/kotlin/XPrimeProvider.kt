@@ -72,28 +72,29 @@ class XprimeProvider : MainAPI() {
         }
     }
 
-    override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
+   override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit
+): Boolean {
 
-        val id = data.substringAfterLast("/")
-        val m3u8 = fetchStreamUrl(id) ?: return false
+    val id = data.substringAfterLast("/")
+    val m3u8 = fetchStreamUrl(id) ?: return false
 
-        callback(
-            ExtractorLink(
-                source = name,
-                name = "Xprime",
-                url = m3u8,
-                referer = mainUrl,
-                quality = Qualities.Unknown.value,
-                isM3u8 = true
-            )
-        )
-        return true
-    }
+    callback(
+        newExtractorLink(
+            source = name,
+            name = "Xprime",
+            url = m3u8
+        ) {
+            referer = mainUrl
+            quality = Qualities.Unknown.value
+            isM3u8 = true
+        }
+    )
+    return true
+}
 
     private suspend fun fetchStreamUrl(id: String): String? {
         val serversJson = app.get(
