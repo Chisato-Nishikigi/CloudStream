@@ -134,45 +134,43 @@ class XprimeProvider : MainAPI() {
             }
         }
 
-        return newMovieLoadResponse(
-            title,
-            url,
-            TvType.Movie,
-            url
-        ) {
-            posterUrl = "$tmdbImg$poster"
-            plot = tmdb.optString("overview")
-            this.year = year
-            tags = genres
-            this.rating = Rating(rating, 10)
-        }
-    }
+       return newMovieLoadResponse(
+    title,
+    url,
+    TvType.Movie,
+    url
+) {
+    posterUrl = "$tmdbImg$poster"
+    plot = tmdb.optString("overview")
+    this.year = year
+    tags = genres
+    score = Score(rating) // ✅ FIX
+}
 
     // ================= STREAM =================
 
-    override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
+   override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit
+): Boolean {
 
-        val id = data.substringAfterLast("/")
-        val m3u8 = fetchStreamUrl(id) ?: return false
+    val id = data.substringAfterLast("/")
+    val m3u8 = fetchStreamUrl(id) ?: return false
 
-        callback(
-            newExtractorLink(
-                source = name,
-                name = "Xprime",
-                url = m3u8,
-                headers = mapOf(
-                    "Referer" to "https://xprime.today/",
-                    "User-Agent" to USER_AGENT
-                )
-            )
+    callback(
+        ExtractorLink(
+            source = name,
+            name = "Xprime",
+            url = m3u8,
+            referer = "https://xprime.today/",
+            quality = Qualities.Unknown.value,
+            isM3u8 = true
         )
-        return true
-    }
+    )
+    return true
+}
 
     // ================= HELPERS =================
 
