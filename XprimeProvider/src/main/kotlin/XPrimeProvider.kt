@@ -74,16 +74,18 @@ override suspend fun load(url: String): LoadResponse {
         url = url,
         apiName = this.name,
         type = TvType.Movie,
+        dataUrl = url,                 // ⬅️ WAJIB
         posterUrl = poster,
         year = null,
         plot = plot,
-        rating = null,
+        score = null,                  // ⬅️ BUKAN rating
         tags = null,
         duration = null,
-        trailers = emptyList(),
-        recommendations = emptyList(),
-        actors = emptyList(),
-        comingSoon = false
+        trailers = mutableListOf(),    // ⬅️ HARUS MutableList
+        recommendations = null,
+        actors = null,
+        comingSoon = false,
+        syncData = mutableMapOf()
     )
 }
     override suspend fun loadLinks(
