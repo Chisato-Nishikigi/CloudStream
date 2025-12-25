@@ -101,29 +101,28 @@ class XprimeProvider : MainAPI() {
     }
 
     override suspend fun loadLinks(
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit
+): Boolean {
 
-        val id = data.substringAfterLast("/")
+    val id = data.substringAfterLast("/")
 
-        val html = app.get("$mainUrl/watch/$id").text
-        val m3u8 = Regex("""https?://[^\s'"]+\.m3u8""")
-            .find(html)
-            ?.value ?: return false
+    val html = app.get("$mainUrl/watch/$id").text
+    val m3u8 = Regex("""https?://[^\s'"]+\.m3u8""")
+        .find(html)
+        ?.value ?: return false
 
-        callback(
-            ExtractorLink(
-                source = name,
-                name = "Xprime",
-                url = m3u8,
-                referer = mainUrl,
-                quality = Qualities.Unknown.value,
-                isM3u8 = true
-            )
+    callback(
+        newExtractorLink(
+            source = name,
+            name = "Xprime",
+            url = m3u8,
+            referer = mainUrl,
+            quality = Qualities.Unknown.value,
+            isM3u8 = true
         )
-        return true
-    }
+    )
+    return true
 }
