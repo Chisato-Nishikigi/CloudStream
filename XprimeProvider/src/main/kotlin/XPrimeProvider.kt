@@ -70,13 +70,12 @@ override suspend fun load(url: String): LoadResponse {
     val plot = document.selectFirst("p, div.description")?.text()
 
     return newMovieLoadResponse(
-        title,     // name
-        url,       // url
-        this.name, // apiName
-        TvType.Movie,
-        url        // dataUrl  ⬅️ INI KUNCI
+        title,          // name
+        url,            // url
+        TvType.Movie,   // type
+        url             // dataUrl
     ) {
-        posterUrl = poster
+        this.posterUrl = poster
         this.plot = plot
     }
 }
