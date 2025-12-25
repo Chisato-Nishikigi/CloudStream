@@ -2,9 +2,15 @@
   {
     "name": "Xprime",
     "description": "Xprime movie provider",
-    "version": 2,
-    "language": "en",
     "authors": ["Chisato-Nishikigi"],
-    "url": "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/master/plugins/XprimeProvider.cs3"
+    "version": 2,
+    "apiVersion": 1,
+    "internalName": "xprime",
+    "url": "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/master/plugins/XprimeProvider.cs3",
+    "iconUrl": "https://raw.githubusercontent.com/DavSnip/CloudStream/master/icons/tv.png",
+    "status": 1,
+    "language": "en",
+    "tvTypes": ["Movie"],
+    "isAdult": false
   }
 ]
