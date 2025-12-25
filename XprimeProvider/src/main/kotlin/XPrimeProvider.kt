@@ -69,16 +69,23 @@ override suspend fun load(url: String): LoadResponse {
     val poster = document.selectFirst("img")?.attr("src")
     val plot = document.selectFirst("p, div.description")?.text()
 
-    return newMovieLoadResponse(
-        title,
-        url,
-        TvType.Movie
-    ) {
-        posterUrl = poster
-        this.plot = plot
-    }
+    return MovieLoadResponse(
+        name = title,
+        url = url,
+        apiName = this.name,
+        type = TvType.Movie,
+        posterUrl = poster,
+        year = null,
+        plot = plot,
+        rating = null,
+        tags = null,
+        duration = null,
+        trailers = emptyList(),
+        recommendations = emptyList(),
+        actors = emptyList(),
+        comingSoon = false
+    )
 }
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
