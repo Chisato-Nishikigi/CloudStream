@@ -62,26 +62,56 @@ newMovieSearchResponse(
     return newHomePageResponse(request.name, items)
 }
 
-    override suspend fun load(url: String): LoadResponse {
-        val id = url.substringAfterLast("/")
-        val tmdb = JSONObject(
-            app.get(
-                "https://api.themoviedb.org/3/movie/$id",
-                params = mapOf("api_key" to tmdbKey)
-            ).text
-        )
+override suspend fun load(url: String): LoadResponse {
+    val id = url.substringAfterLast("/")
 
-        return newMovieLoadResponse(
-            tmdb.optString("title"),
-            url,
-            TvType.Movie,
-            url
-        ) {
-            posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
-            plot = tmdb.optString("overview")
+    val tmdb = JSONObject(
+        app.get(
+            "https://api.themoviedb.org/3/movie/$id",
+            params = mapOf(
+                "api_key" to tmdbKey,
+                "language" to "id-ID"
+            )
+        ).text
+    )
+
+    val title = tmdb.optString("title")
+    val poster = tmdb.optString("poster_path")
+
+    val year = tmdb.optString("release_date")
+        .takeIf { it.length >= 4 }
+        ?.substring(0, 4)
+        ?.toIntOrNull()
+
+    val genres = tmdb.optJSONArray("genres")?.let {
+        (0 until it.length()).mapNotNull { i ->
+            it.getJSONObject(i).optString("name")
         }
     }
 
+    val rating = tmdb.optDouble("vote_average", 0.0)
+
+    return newMovieLoadResponse(
+        title,
+        url,
+        TvType.Movie,
+        url
+    ) {
+        posterUrl = "$tmdbImg$poster"
+        plot = tmdb.optString("overview")
+        this.year = year
+        tags = genres
+
+        // Rating versi AMAN (tanpa Score class)
+        if (rating > 0) {
+            addRating(
+                name = "TMDB",
+                value = rating.toFloat(),
+                max = 10f
+            )
+        }
+    }
+}
 override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
