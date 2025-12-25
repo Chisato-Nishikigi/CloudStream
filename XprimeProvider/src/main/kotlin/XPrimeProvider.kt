@@ -102,7 +102,7 @@ override suspend fun load(url: String): LoadResponse {
     }
 }
     
-    override suspend fun loadLinks(
+   override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
     subtitleCallback: (SubtitleFile) -> Unit,
@@ -110,26 +110,61 @@ override suspend fun load(url: String): LoadResponse {
 ): Boolean {
 
     val id = data.substringAfterLast("/")
-    val m3u8 = fetchStreamUrl(id) ?: return false
 
-    callback(
-        newExtractorLink(
-            source = name,
-            name = "Xprime",
-            url = m3u8,
-            type = ExtractorLinkType.M3U8
-        ) {
-            referer = "https://xprime.today/"
+    val serversJson = app.get(
+        "https://mzt4pr8wlkxnv0qsha5g.website/servers"
+    ).text
+
+    val servers = JSONObject(serversJson).getJSONArray("servers")
+
+    var found = false
+
+    for (i in 0 until servers.length()) {
+        val server = servers.getJSONObject(i)
+        val name = server.getString("name")
+        val status = server.getString("status")
+
+        if (status != "ok") continue
+
+        // Skip turnstile-heavy server kalau mau aman
+        // if (name == "primenet") continue
+
+        val watchUrl = "$mainUrl/watch/$id?server=$name"
+
+        val html = app.get(
+            watchUrl,
             headers = mapOf(
                 "User-Agent" to USER_AGENT,
-                "Origin" to "https://xprime.today"
+                "Referer" to "https://xprime.today/"
             )
-        }
-    )
+        ).text
 
-    return true
+        Regex("""https?://[^\s'"]+\.m3u8""")
+            .find(html)
+            ?.value
+            ?.let { m3u8 ->
+
+                callback(
+                    newExtractorLink(
+                        source = "Xprime",
+                        name = "Xprime - $name",
+                        url = m3u8,
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        referer = "https://xprime.today/"
+                        headers = mapOf(
+                            "User-Agent" to USER_AGENT,
+                            "Origin" to "https://xprime.today"
+                        )
+                    }
+                )
+
+                found = true
+            }
+    }
+
+    return found
 }
-
     private suspend fun fetchStreamUrl(id: String): String? {
         val serversJson = app.get(
             "https://mzt4pr8wlkxnv0qsha5g.website/servers"
