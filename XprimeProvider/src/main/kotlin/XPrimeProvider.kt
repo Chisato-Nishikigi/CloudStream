@@ -2,7 +2,6 @@ package com.hexated
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import org.jsoup.Jsoup
 
 class XprimeProvider : MainAPI() {
 
@@ -10,7 +9,6 @@ class XprimeProvider : MainAPI() {
     override var name = "Xprime"
     override var lang = "en"
     override var hasMainPage = true
-
     override val supportedTypes = setOf(TvType.Movie)
 
     override val mainPage = mainPageOf(
@@ -28,21 +26,21 @@ class XprimeProvider : MainAPI() {
 
         val items = document.select("a[href*='/movie/']").mapNotNull { el ->
             val url = el.attr("href")
-            val title = el.selectFirst("h3, h2")?.text() ?: return@mapNotNull null
+            val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
             val poster = el.selectFirst("img")?.attr("src")
 
             newMovieSearchResponse(
                 name = title,
-                url = fixUrl(url),
+                dataUrl = fixUrl(url),
                 type = TvType.Movie
             ) {
-                this.posterUrl = poster
+                posterUrl = poster
             }
         }
 
-        return HomePageResponse(
-            listOf(HomePageList(request.name, items)),
-            hasNext = false
+        return newHomePageResponse(
+            request.name,
+            items
         )
     }
 
@@ -51,15 +49,15 @@ class XprimeProvider : MainAPI() {
 
         return document.select("a[href*='/movie/']").mapNotNull { el ->
             val url = el.attr("href")
-            val title = el.selectFirst("h3, h2")?.text() ?: return@mapNotNull null
+            val title = el.selectFirst("h2, h3")?.text() ?: return@mapNotNull null
             val poster = el.selectFirst("img")?.attr("src")
 
             newMovieSearchResponse(
                 name = title,
-                url = fixUrl(url),
+                dataUrl = fixUrl(url),
                 type = TvType.Movie
             ) {
-                this.posterUrl = poster
+                posterUrl = poster
             }
         }
     }
@@ -76,7 +74,7 @@ class XprimeProvider : MainAPI() {
             url = url,
             type = TvType.Movie
         ) {
-            this.posterUrl = poster
+            posterUrl = poster
             this.plot = plot
         }
     }
@@ -89,9 +87,7 @@ class XprimeProvider : MainAPI() {
     ): Boolean {
 
         val document = app.get(data).document
-
-        val iframe = document.selectFirst("iframe")?.attr("src")
-            ?: return false
+        val iframe = document.selectFirst("iframe")?.attr("src") ?: return false
 
         loadExtractor(
             fixUrl(iframe),
@@ -99,7 +95,6 @@ class XprimeProvider : MainAPI() {
             subtitleCallback,
             callback
         )
-
         return true
     }
 }
