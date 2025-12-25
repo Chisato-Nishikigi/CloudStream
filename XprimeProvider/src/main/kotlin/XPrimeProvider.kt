@@ -16,153 +16,148 @@ class XprimeProvider : MainAPI() {
     private val tmdbImg = "https://image.tmdb.org/t/p/w500"
 
     override val mainPage = mainPageOf(
-    // Xprime native
-    "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases",
-    "https://db.xprime.stream/netflix-movies" to "🎬 Netflix Collection",
-    "https://db.xprime.stream/4k-releases" to "📺 4K Movies",
-)
-override suspend fun getMainPage(
-    page: Int,
-    request: MainPageRequest
-): HomePageResponse {
+        "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases",
+        "https://db.xprime.stream/netflix-movies" to "🎬 Netflix Collection",
+        "https://db.xprime.stream/4k-releases" to "📺 4K Movies",
+    )
 
-    val json = JSONObject(app.get(request.data).text)
-    val ids = json.getJSONArray("movies")
+    override suspend fun getMainPage(
+        page: Int,
+        request: MainPageRequest
+    ): HomePageResponse {
 
-    val items = (0 until ids.length()).mapNotNull { i ->
-        val id = ids.getInt(i)
+        val json = JSONObject(app.get(request.data).text)
+        val ids = json.getJSONArray("movies")
+
+        val items = (0 until ids.length()).mapNotNull { i ->
+            val id = ids.getInt(i)
+
+            val tmdb = JSONObject(
+                app.get(
+                    "https://api.themoviedb.org/3/movie/$id",
+                    params = mapOf("api_key" to tmdbKey)
+                ).text
+            )
+
+            val title = tmdb.optString("title")
+            if (title.isBlank()) return@mapNotNull null
+
+            val poster = tmdb.optString("poster_path")
+            val year = tmdb.optString("release_date")
+                .takeIf { it.length >= 4 }
+                ?.substring(0, 4)
+                ?.toIntOrNull()
+
+            newMovieSearchResponse(
+                title,
+                "$mainUrl/watch/$id",
+                TvType.Movie
+            ) {
+                posterUrl = "$tmdbImg$poster"
+                this.year = year
+            }
+        }
+
+        return newHomePageResponse(request.name, items)
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val id = url.substringAfterLast("/")
 
         val tmdb = JSONObject(
             app.get(
                 "https://api.themoviedb.org/3/movie/$id",
-                params = mapOf("api_key" to tmdbKey)
+                params = mapOf(
+                    "api_key" to tmdbKey,
+                    "language" to "id-ID"
+                )
             ).text
         )
 
-       val title = tmdb.optString("title")
-val poster = tmdb.optString("poster_path")
+        val title = tmdb.optString("title")
+        val poster = tmdb.optString("poster_path")
 
-val year = tmdb.optString("release_date")
-    .takeIf { it.length >= 4 }
-    ?.substring(0, 4)
-    ?.toIntOrNull()
+        val year = tmdb.optString("release_date")
+            .takeIf { it.length >= 4 }
+            ?.substring(0, 4)
+            ?.toIntOrNull()
 
-if (title.isBlank()) return@mapNotNull null
+        val genres = tmdb.optJSONArray("genres")?.let {
+            (0 until it.length()).mapNotNull { i ->
+                it.getJSONObject(i).optString("name")
+            }
+        }
 
-newMovieSearchResponse(
-    title,
-    "$mainUrl/watch/$id",
-    TvType.Movie
-) {
-    posterUrl = "$tmdbImg$poster"
-    this.year = year
-}
-    }
-
-    return newHomePageResponse(request.name, items)
-}
-
-override suspend fun load(url: String): LoadResponse {
-    val id = url.substringAfterLast("/")
-
-    val tmdb = JSONObject(
-        app.get(
-            "https://api.themoviedb.org/3/movie/$id",
-            params = mapOf(
-                "api_key" to tmdbKey,
-                "language" to "id-ID"
-            )
-        ).text
-    )
-
-    val title = tmdb.optString("title")
-    val poster = tmdb.optString("poster_path")
-
-    val year = tmdb.optString("release_date")
-        .takeIf { it.length >= 4 }
-        ?.substring(0, 4)
-        ?.toIntOrNull()
-
-    val genres = tmdb.optJSONArray("genres")?.let {
-        (0 until it.length()).mapNotNull { i ->
-            it.getJSONObject(i).optString("name")
+        return newMovieLoadResponse(
+            title,
+            url,
+            TvType.Movie,
+            url
+        ) {
+            posterUrl = "$tmdbImg$poster"
+            plot = tmdb.optString("overview")
+            this.year = year
+            tags = genres
         }
     }
 
-    return newMovieLoadResponse(
-        title,
-        url,
-        TvType.Movie,
-        url
-    ) {
-        posterUrl = "$tmdbImg$poster"
-        plot = tmdb.optString("overview")
-        this.year = year
-        tags = genres   // ✅ genre tampil
-    }
-}
-    
-   override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
 
-    val id = data.substringAfterLast("/")
+        val id = data.substringAfterLast("/")
 
-    val serversJson = app.get(
-        "https://mzt4pr8wlkxnv0qsha5g.website/servers"
-    ).text
-
-    val servers = JSONObject(serversJson).getJSONArray("servers")
-
-    var found = false
-
-    for (i in 0 until servers.length()) {
-        val server = servers.getJSONObject(i)
-        val name = server.getString("name")
-        val status = server.getString("status")
-
-        if (status != "ok") continue
-
-        // Skip turnstile-heavy server kalau mau aman
-        // if (name == "primenet") continue
-
-        val watchUrl = "$mainUrl/watch/$id?server=$name"
-
-        val html = app.get(
-            watchUrl,
-            headers = mapOf(
-                "User-Agent" to USER_AGENT,
-                "Referer" to "https://xprime.today/"
-            )
+        val serversJson = app.get(
+            "https://mzt4pr8wlkxnv0qsha5g.website/servers"
         ).text
 
-        Regex("""https?://[^\s'"]+\.m3u8""")
-            .find(html)
-            ?.value
-            ?.let { m3u8 ->
+        val servers = JSONObject(serversJson).getJSONArray("servers")
+        var found = false
 
-                callback(
-                    newExtractorLink(
-                        source = "Xprime",
-                        name = "Xprime - $name",
-                        url = m3u8,
-                        type = ExtractorLinkType.M3U8
-                    ) {
-                        referer = "https://xprime.today/"
-                        headers = mapOf(
-                            "User-Agent" to USER_AGENT,
-                            "Origin" to "https://xprime.today"
-                        )
-                    }
+        for (i in 0 until servers.length()) {
+            val server = servers.getJSONObject(i)
+            val name = server.getString("name")
+            val status = server.getString("status")
+
+            if (status != "ok") continue
+
+            val watchUrl = "$mainUrl/watch/$id?server=$name"
+
+            val html = app.get(
+                watchUrl,
+                headers = mapOf(
+                    "User-Agent" to USER_AGENT,
+                    "Referer" to "https://xprime.today/"
                 )
+            ).text
 
-                found = true
-            }
+            Regex("""https?://[^\s'"]+\.m3u8""")
+                .find(html)
+                ?.value
+                ?.let { m3u8 ->
+
+                    callback(
+                        newExtractorLink(
+                            source = "Xprime",
+                            name = "Xprime - $name",
+                            url = m3u8,
+                            type = ExtractorLinkType.M3U8
+                        ) {
+                            referer = "https://xprime.today/"
+                            headers = mapOf(
+                                "User-Agent" to USER_AGENT,
+                                "Origin" to "https://xprime.today"
+                            )
+                        }
+                    )
+
+                    found = true
+                }
+        }
+
+        return found
     }
-
-    return found
 }
-   
