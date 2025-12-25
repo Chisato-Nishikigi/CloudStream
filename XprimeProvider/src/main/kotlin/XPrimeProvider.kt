@@ -165,3 +165,49 @@ override suspend fun loadLinks(
         return null
     }
 }
+private suspend fun buildFromTmdb(id: Int): SearchResponse? {
+    val tmdb = JSONObject(
+        app.get(
+            "https://api.themoviedb.org/3/movie/$id",
+            params = mapOf("api_key" to tmdbKey)
+        ).text
+    )
+
+    val title = tmdb.optString("title")
+    if (title.isBlank()) return null
+
+    val poster = tmdb.optString("poster_path")
+    val year = tmdb.optString("release_date")
+        .takeIf { it.length >= 4 }
+        ?.substring(0, 4)
+        ?.toIntOrNull()
+
+    return newMovieSearchResponse(
+        title,
+        "$mainUrl/watch/$id",
+        TvType.Movie
+    ) {
+        posterUrl = "$tmdbImg$poster"
+        this.year = year
+    }
+}
+
+private fun buildFromTmdbJson(obj: JSONObject): SearchResponse? {
+    val title = obj.optString("title")
+    if (title.isBlank()) return null
+
+    val poster = obj.optString("poster_path")
+    val year = obj.optString("release_date")
+        .takeIf { it.length >= 4 }
+        ?.substring(0, 4)
+        ?.toIntOrNull()
+
+    return newMovieSearchResponse(
+        title,
+        "$mainUrl/watch/${obj.getInt("id")}",
+        TvType.Movie
+    ) {
+        posterUrl = "$tmdbImg$poster"
+        this.year = year
+    }
+}
