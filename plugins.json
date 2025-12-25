@@ -2,9 +2,9 @@
   {
     "name": "Xprime",
     "description": "Xprime movie provider",
-    "version": 1,
+    "version": 2,
     "language": "en",
-    "authors": ["Reno"],
-    "url": "https://github.com/Chisato-Nishikigi/CloudStream/blob/master/plugins/XprimeProvider.cs3"
+    "authors": ["Chisato-Nishikigi"],
+    "url": "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/master/plugins/XprimeProvider.cs3"
   }
 ]
