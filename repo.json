@@ -1,10 +1,8 @@
-[
-  {
-    "name": "Xprime",
-    "description": "Movies from Xprime",
-    "version": 1,
-    "language": "en",
-    "authors": ["Reno"],
-    "url": "https://github.com/Chisato-Nishikigi/CloudStream/blob/master/plugins/XprimeProvider.cs3"
-  }
-]
+{
+  "name": "Reno CloudStream Repo",
+  "description": "Personal CloudStream extensions",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/Chisato-Nishikigi/CloudStream/refs/heads/master/plugins.json"
+  ]
+}
