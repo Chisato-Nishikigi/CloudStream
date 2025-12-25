@@ -62,7 +62,7 @@ class XprimeProvider : MainAPI() {
         }
     }
 
-    override suspend fun load(url: String): LoadResponse {
+ override suspend fun load(url: String): LoadResponse {
     val document = app.get(url).document
 
     val title = document.selectFirst("h1")?.text() ?: "Unknown"
@@ -71,7 +71,7 @@ class XprimeProvider : MainAPI() {
 
     return newMovieLoadResponse(
         name = title,
-        dataUrl = url,
+        url = url,
         type = TvType.Movie
     ) {
         posterUrl = poster
