@@ -6,7 +6,7 @@
     "version": 1,
     "apiVersion": 1,
     "internalName": "exampleprovider",
-    "url": "https://raw.githubusercontent.com/DavSnip/CloudStream/master/plugins/ExampleProvider.cs3",
+    "url": "https://github.com/Chisato-Nishikigi/CloudStream/blob/master/plugins/XprimeProvider.cs3",
     "iconUrl": "https://raw.githubusercontent.com/DavSnip/CloudStream/master/icons/tv.png",
     "status": 1,
     "language": "fr",
