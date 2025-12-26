@@ -42,6 +42,38 @@ class XPrimeProvider : MainAPI() {
     }
 
     // =========================
+    // LOAD (DETAIL + EPISODE LIST)
+    // =========================
+    override suspend fun load(url: String): LoadResponse? {
+        val doc = app.get(url).document
+
+        val title = doc.selectFirst("h1")?.text()
+            ?: doc.selectFirst("title")?.text()
+            ?: return null
+
+        val episodes = doc.select("a")
+            .mapIndexedNotNull { index, el ->
+                val href = el.attr("href")
+                if (href.contains("/episode/")) {
+                    Episode(
+                        data = fixUrl(href),
+                        name = "Episode ${index + 1}",
+                        episode = index + 1
+                    )
+                } else null
+            }
+
+        Log.d("XPrime", "Episodes found: ${episodes.size}")
+
+        return newTvSeriesLoadResponse(
+            title,
+            url,
+            TvType.TvSeries,
+            episodes
+        )
+    }
+
+    // =========================
     // LOAD LINKS (VIDEO PLAYER)
     // =========================
     override suspend fun loadLinks(
