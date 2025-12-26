@@ -1,154 +1,124 @@
-package com.hexated
+package com.yourname.uimax
 
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.metaproviders.TmdbProvider
+import com.lagradost.cloudstream3.metaproviders.TmdbLink
 import com.lagradost.cloudstream3.utils.*
-import org.json.JSONObject
+import com.lagradost.cloudstream3.mvvm.safeApiCall
 
-class XprimeProvider : MainAPI() {
+/**
+ * UI-MAXIMIZED TEMPLATE
+ * - ⭐ Rating badge → dari TMDB
+ * - 🏷️ HD badge     → dari SearchResponse.quality
+ * - 🎬 HBO look     → horizontal posters
+ *
+ * Video source masih dummy (fokus UI dulu)
+ */
+class UiMaxTemplate : TmdbProvider() {
 
-    override var name = "Xprime"
-    override var mainUrl = "https://xprime.today"
+    override var name = "UI-MAX Template"
     override var lang = "en"
-    override val supportedTypes = setOf(TvType.Movie)
-    override var hasMainPage = true
 
-    private val tmdbKey = "84259f99204eeb7d45c7e3d8e36c6123"
-    private val tmdbImg = "https://image.tmdb.org/t/p/w500"
+    // === UI CAPABILITIES ===
+    override val hasMainPage = true
+    override val hasQuickSearch = true
+    override val useMetaLoadResponse = true
+    override val instantLinkLoading = true
 
-    override val mainPage = mainPageOf(
-        "https://db.xprime.stream/latest-releases" to "🔥 Latest Releases",
-        "https://db.xprime.stream/netflix-movies" to "🎬 Netflix Collection",
-        "https://db.xprime.stream/4k-releases" to "📺 4K Movies",
+    // === CONTENT TYPES ===
+    override val supportedTypes = setOf(
+        TvType.Movie,
+        TvType.TvSeries
     )
 
+    /**
+     * =========================
+     * HOME PAGE (HBO STYLE)
+     * =========================
+     */
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
 
-        val json = JSONObject(app.get(request.data).text)
-        val ids = json.getJSONArray("movies")
+        // Ambil data populer dari TMDB (ditangani oleh TmdbProvider)
+        val movies = getMoviePopular(page)
+        val series = getTvPopular(page)
 
-        val items = (0 until ids.length()).mapNotNull { i ->
-            val id = ids.getInt(i)
-
-            val tmdb = JSONObject(
-                app.get(
-                    "https://api.themoviedb.org/3/movie/$id",
-                    params = mapOf("api_key" to tmdbKey)
-                ).text
-            )
-
-            val title = tmdb.optString("title")
-            if (title.isBlank()) return@mapNotNull null
-
-            val poster = tmdb.optString("poster_path")
-            val year = tmdb.optString("release_date")
-                .takeIf { it.length >= 4 }
-                ?.substring(0, 4)
-                ?.toIntOrNull()
-
-            newMovieSearchResponse(
-                title,
-                "$mainUrl/watch/$id",
-                TvType.Movie
-            ) {
-                posterUrl = "$tmdbImg$poster"
-                this.year = year
-            }
-        }
-
-        return newHomePageResponse(request.name, items)
-    }
-
-    override suspend fun load(url: String): LoadResponse {
-        val id = url.substringAfterLast("/")
-
-        val tmdb = JSONObject(
-            app.get(
-                "https://api.themoviedb.org/3/movie/$id",
-                params = mapOf(
-                    "api_key" to tmdbKey,
-                    "language" to "id-ID"
+        return newHomePageResponse(
+            listOf(
+                HomePageList(
+                    name = "Popular Movies",
+                    list = movies.map { it.withHdBadge() },
+                    isHorizontalImages = true // ← HBO / Netflix look
+                ),
+                HomePageList(
+                    name = "Popular Series",
+                    list = series.map { it.withHdBadge() },
+                    isHorizontalImages = true
                 )
-            ).text
+            ),
+            hasNext = true
         )
-
-        val genres = tmdb.optJSONArray("genres")?.let {
-            (0 until it.length()).mapNotNull { i ->
-                it.getJSONObject(i).optString("name")
-            }
-        }
-
-        return newMovieLoadResponse(
-            tmdb.optString("title"),
-            url,
-            TvType.Movie,
-            url
-        ) {
-            posterUrl = "$tmdbImg${tmdb.optString("poster_path")}"
-            plot = tmdb.optString("overview")
-            year = tmdb.optString("release_date").take(4).toIntOrNull()
-            tags = genres
-        }
     }
 
- override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
+    /**
+     * =========================
+     * SEARCH (HD BADGE AKTIF)
+     * =========================
+     */
+    override suspend fun search(query: String): List<SearchResponse> {
+        val results = super.search(query)
 
-    val id = data.substringAfterLast("/")
-    val serversJson = app.get(
-        "https://mzt4pr8wlkxnv0qsha5g.website/servers"
-    ).text
+        // Pastikan HD badge muncul
+        return results.map { it.withHdBadge() }
+    }
 
-    val servers = JSONObject(serversJson).getJSONArray("servers")
-    var found = false
+    /**
+     * =========================
+     * LOAD DETAIL
+     * =========================
+     * Rating ⭐ otomatis dari TMDB
+     * Background cinematic otomatis
+     */
+    override suspend fun load(url: String): LoadResponse? {
+        return super.load(url)
+        // Tidak perlu override apa-apa
+        // TMDB → score → rating badge UI
+    }
 
-    for (i in 0 until servers.length()) {
-        val server = servers.getJSONObject(i)
-        if (server.optString("status") != "ok") continue
-
-        val serverName = server.getString("name")
-
-        // 🔒 WAJIB: filter server tanpa turnstile
-        if (serverName !in listOf("darkness", "bomber", "mary")) continue
-
-        val apiUrl = "https://mzt4pr8wlkxnv0qsha5g.website/$serverName?id=$id"
-
-        val res = app.get(
-            apiUrl,
-            allowRedirects = false,
-            headers = mapOf(
-                "User-Agent" to USER_AGENT,
-                "Referer" to "https://xprime.today/",
-                "Origin" to "https://xprime.today"
-            )
-        )
-
-        val m3u8 = res.headers["Location"] ?: continue
-
+    /**
+     * =========================
+     * LOAD LINKS (DUMMY)
+     * =========================
+     * Fokus UI dulu
+     */
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean = safeApiCall {
         callback(
             newExtractorLink(
-                source = "Xprime",
-                name = "Xprime - $serverName",
-                url = m3u8,
+                source = name,
+                name = "Dummy 1080p",
+                url = "https://example.com/dummy.m3u8",
                 type = ExtractorLinkType.M3U8
             ) {
-                referer = "https://xprime.today/"
-                headers = mapOf(
-                    "Origin" to "https://xprime.today",
-                    "Referer" to "https://xprime.today/",
-                    "User-Agent" to USER_AGENT
-                )
+                this.quality = Qualities.P1080.value
             }
         )
-
-        found = true
+        true
     }
 
-    return found
+    /**
+     * =========================
+     * HELPER — HD BADGE TRIGGER
+     * =========================
+     */
+    private fun SearchResponse.withHdBadge(): SearchResponse {
+        this.quality = SearchQuality.HD // ← MEMICU BADGE “HD”
+        return this
+    }
 }
