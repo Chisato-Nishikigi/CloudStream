@@ -14,7 +14,35 @@ class XPrimeProvider : MainAPI() {
     override val hasMainPage = true
 
     // =========================
-    // LOAD LINKS (PASTE DI SINI)
+    // MAIN PAGE (DUMMY UNTUK TEST)
+    // =========================
+    override suspend fun getMainPage(
+        page: Int,
+        request: MainPageRequest
+    ): HomePageResponse {
+
+        val items = listOf(
+            newTvSeriesSearchResponse(
+                name = "Cengjing You Yongshi",
+                url = "https://v8.kuramanime.tel/anime/4290/cengjing-you-yongshi"
+            )
+        )
+
+        return newHomePageResponse(
+            listOf(HomePageList("Test Anime", items)),
+            hasNext = false
+        )
+    }
+
+    // =========================
+    // SEARCH (BIAR TIDAK ERROR)
+    // =========================
+    override suspend fun search(query: String): List<SearchResponse> {
+        return emptyList()
+    }
+
+    // =========================
+    // LOAD LINKS (VIDEO PLAYER)
     // =========================
     override suspend fun loadLinks(
         data: String,
@@ -24,9 +52,12 @@ class XPrimeProvider : MainAPI() {
     ): Boolean {
 
         val doc = app.get(data).document
-
         val sources = doc.select("video#player source")
-        if (sources.isEmpty()) return false
+
+        if (sources.isEmpty()) {
+            Log.d("XPrime", "No video sources found")
+            return false
+        }
 
         for (source in sources) {
             val url = source.attr("src")
