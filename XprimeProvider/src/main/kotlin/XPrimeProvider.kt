@@ -51,16 +51,16 @@ class XPrimeProvider : MainAPI() {
         ?: doc.selectFirst("title")?.text()
         ?: return null
 
-    val episodes = doc.select("a")
-        .mapIndexedNotNull { index, el ->
-            val href = el.attr("href")
-            if (href.contains("/episode/")) {
-                newEpisode(fixUrl(href)) {
-                    this.name = "Episode ${index + 1}"
-                    this.episode = index + 1
-                }
-            } else null
-        }
+   val episodes = doc.select("div.episode__list a")
+    .mapIndexedNotNull { index, el ->
+        val href = el.attr("href")
+        if (href.contains("/episode/")) {
+            newEpisode(fixUrl(href)) {
+                this.name = el.text().ifBlank { "Episode ${index + 1}" }
+                this.episode = index + 1
+            }
+        } else null
+    }
 
     Log.d("XPrime", "Episodes found: ${episodes.size}")
 
