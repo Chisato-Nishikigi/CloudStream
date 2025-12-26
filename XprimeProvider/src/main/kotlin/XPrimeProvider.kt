@@ -1,39 +1,59 @@
-override suspend fun loadLinks(
-    data: String,
-    isCasting: Boolean,
-    subtitleCallback: (SubtitleFile) -> Unit,
-    callback: (ExtractorLink) -> Unit
-): Boolean {
+package com.yourname.xprime
 
-    val doc = app.get(data).document
+import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.utils.*
+import android.util.Log
 
-    // Ambil semua <source> di dalam <video>
-    val sources = doc.select("video#player source")
+class XPrimeProvider : MainAPI() {
 
-    if (sources.isEmpty()) return false
+    override var name = "XPrime"
+    override var mainUrl = "https://v8.kuramanime.tel"
+    override var lang = "id"
 
-    for (source in sources) {
-        val url = source.attr("src")
-        if (url.isNullOrEmpty()) continue
+    override val supportedTypes = setOf(TvType.TvSeries)
+    override val hasMainPage = true
 
-        val quality = source.attr("size").toIntOrNull() ?: Qualities.Unknown.value
+    // =========================
+    // LOAD LINKS (PASTE DI SINI)
+    // =========================
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
 
-        callback(
-            newExtractorLink(
-                source = "Kuramanime",
-                name = "Kuramanime ${quality}p",
-                url = url,
-                type = ExtractorLinkType.VIDEO
-            ) {
-                this.quality = quality
-                this.referer = data
-                this.headers = mapOf(
-                    "Referer" to data,
-                    "Origin" to "https://v8.kuramanime.tel"
-                )
-            }
-        )
+        val doc = app.get(data).document
+
+        val sources = doc.select("video#player source")
+        if (sources.isEmpty()) return false
+
+        for (source in sources) {
+            val url = source.attr("src")
+            if (url.isNullOrEmpty()) continue
+
+            val quality = source.attr("size").toIntOrNull()
+                ?: Qualities.Unknown.value
+
+            Log.d("XPrime", "Found video: $url ($quality p)")
+
+            callback(
+                newExtractorLink(
+                    source = name,
+                    name = "Kuramanime ${quality}p",
+                    url = url,
+                    type = ExtractorLinkType.VIDEO
+                ) {
+                    this.quality = quality
+                    this.referer = data
+                    this.headers = mapOf(
+                        "Referer" to data,
+                        "Origin" to "https://v8.kuramanime.tel"
+                    )
+                }
+            )
+        }
+
+        return true
     }
-
-    return true
 }
